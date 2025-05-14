@@ -1,6 +1,8 @@
 # Task Management Slack help bot 
 
-Listens for new posts in a designated Slack channel and raises a coresponding request in Jira.
+Last Reviewed: 15 May 2025
+
+Listens for new posts in the Task Management Slack channel and raises a coresponding request in RWA Jira space.
 
 ## Creating the Slack App 
 <details>
