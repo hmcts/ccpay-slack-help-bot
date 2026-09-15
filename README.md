@@ -51,7 +51,8 @@ Running the application requires the following tools to be installed in your env
 You need to create a Slack App as detailed in the steps above. For development purposes, this will have to be created in a new Slack workspace.
 You will also need the JIRA details. For development purposes, these values can be found in the "env.template.txt" file for the HMCTS Jira SBOX Project.
 
-The app connects to the Jira Cloud instance defined by `JIRA_BASE_URL` (defaults to `https://hmcts.atlassian.net`).
+The app connects to Jira Cloud via the Atlassian API gateway using `JIRA_API_URL` (defaults to `https://api.atlassian.com/ex/jira/`) and `JIRA_CLOUD_ID`, which routes requests to your site (e.g. `/ex/jira/<cloud-id>/rest/api/2/...`).
+Human-facing Jira links in Slack use `JIRA_BROWSE_URL` (defaults to `https://hmcts.atlassian.net`). Find your cloud id at `https://<JIRA_BROWSE_URL>/_edge/tenant_info`.
 Authentication uses basic auth with your email address (`JIRA_USERNAME`) and a Cloud API token (`JIRA_API_TOKEN`). Create an API token here: https://id.atlassian.com/manage-profile/security/api-tokens
 
 Set the relevant environment variables defined in [env.template.txt](env.template.txt) based on above steps.
@@ -62,7 +63,9 @@ We use 'Socket mode' so no need to proxy Slack's requests.
 
 ### Running on Kubernetes
 
-The application can be deployed on Kubernetes using the [HMCTS nodejs chart](https://github.com/hmcts/chart-nodejs). To avoid exposing sensitive data from the configuration above you can add them as secrets from an Azure Key Vault. See the chart documentation for further info. 
+The application can be deployed on Kubernetes using the [HMCTS nodejs chart](https://github.com/hmcts/chart-nodejs). To avoid exposing sensitive data from the configuration above you can add them as secrets from an Azure Key Vault. See the chart documentation for further info.
+
+In production the deployment is managed via [Flux](https://github.com/hmcts/cnp-flux-config) (`apps/slack-help-bot/ccpay-slack-help-bot`). In addition to the tokens and Jira credentials, the Key Vault secret `jira-cloud-id` must be mounted (referenced as `jira-cloud-id` in the HelmRelease `keyVaults`) and the pod restarted after it is added so the secret is picked up. 
 
 ### Running locally
 
