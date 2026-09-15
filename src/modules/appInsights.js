@@ -11,6 +11,7 @@ const enableAppInsights = () => {
             appInsights.defaultClient.context
                 .tags[appInsights.defaultClient.context.keys.cloudRole] = config.get('app_insights.role_name');
             appInsights.start();
+            console.log('Application Insights enabled');
         } else {
             console.log('No valid application insights key defined, skipping')
         }
