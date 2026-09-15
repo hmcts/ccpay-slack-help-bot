@@ -267,10 +267,13 @@ async function convertEmail(email) {
 async function createHelpRequestInJira(summary, project, reporterAccountId, includeCustomField, labels) {
     console.log(`Creating help request in Jira for reporter account: ${reporterAccountId}`)
 
+    const taskType = project.issueTypes && project.issueTypes.find((type) => type.name === issueTypeName)
+    const resolvedIssueTypeId = taskType ? taskType.id : issueTypeId
+
     const fields = {
         summary: summary,
         issuetype: {
-            id: issueTypeId
+            id: resolvedIssueTypeId
         },
         project: {
             id: project.id
@@ -288,17 +291,26 @@ async function createHelpRequestInJira(summary, project, reporterAccountId, incl
     }
 
     if (includeCustomField) {
-        fields.customfield_10008 = 'PAY-6381'; // TODO: Probably make configurable
+        fields.parent = { key: 'PAY-6381' }; // TODO: Probably make configurable
     }
 
     const issue = await jira.addNewIssue({ fields });
 
     try {
+        const transitionsResponse = await jira.listTransitions(issue.key);
+        const availableTransitions = transitionsResponse.transitions || [];
+        const transition = availableTransitions.find((t) => t.to && t.to.name === 'Awaiting Initial Triage');
+
+        if (!transition) {
+            throw new Error(`Cannot transition ${issue.key} to Awaiting Initial Triage`);
+        }
+
+        console.log('Transition ID:', transition.id);
         await jira.transitionIssue(issue.key, {
             transition: {
-                id: "481" // Move to "Awaiting Initial Triage"
+                id: transition.id
             }
-        })
+        });
     } catch (err) {
         console.log("Unable to transition new issue to 'Awaiting Initial Triage'", err)
 
@@ -328,11 +340,11 @@ async function createHelpRequest({
 
     let result
     try {
-        // customfield_10008 may not exist (or may have a different id) in the cloud instance,
+        // a parent may not be allowed for the issue type in the cloud instance,
         // so fall back to creating without it
         result = await createHelpRequestInJira(summary, project, reporterAccountId, true, labels);
     } catch (err) {
-        console.log("Error creating issue with customfield_10008, retrying without it", err)
+        console.log("Error creating issue with parent, retrying without it", err)
 
         try {
             result = await createHelpRequestInJira(summary, project, reporterAccountId, false, labels);
