@@ -15,8 +15,11 @@ const DONE_TRANSITION_NAMES = ['Done', 'Resolve Issue', 'Resolved', 'Close Issue
 const START_TRANSITION_NAMES = ['Start Progress', 'In Progress', 'Start']
 
 const jiraApiUrl = new URL(config.get('jira.api_url'));
-if (config.has('jira.cloud_id')) {
-  jiraApiUrl.pathname = `${jiraApiUrl.pathname.replace(/\/+$/, '')}/${config.get('jira.cloud_id')}`;
+const jiraCloudId = config.has('jira.cloud_id') ? config.get('jira.cloud_id') : '';
+if (jiraCloudId) {
+  jiraApiUrl.pathname = `${jiraApiUrl.pathname.replace(/\/+$/, '')}/${jiraCloudId}`;
+} else {
+  console.log('Jira cloud_id is not configured. Set JIRA_CLOUD_ID (or the vault secret jira-cloud-id) so gateway requests are routed to your site.');
 }
 
 const jira = new JiraApi({
