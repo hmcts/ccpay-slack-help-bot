@@ -1,4 +1,4 @@
-FROM hmctsprod.azurecr.io/base/node:26-alpine
+FROM hmctsprod.azurecr.io/base/node:24-alpine
 
 COPY --chown=hmcts:hmcts package*.json ./
 
