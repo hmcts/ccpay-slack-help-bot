@@ -17,24 +17,23 @@ jobs:
       AZURE_CONTAINER_REGISTRY_URL: hmctsprod.azurecr.io
     strategy:
       matrix:
-        node-version: [24.x]
+        node-version: [26.x]
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v7
 
-      # Beginning of yarn setup, keep in sync between all workflows, see ci.yml
-      - name: use node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v3
+      - name: use node.js
+        uses: actions/setup-node@v7
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version-file: .nvmrc
           registry-url: https://registry.npmjs.org/ # Needed for auth
-          cache: 'npm'
+          cache: "npm"
 
       - name: npm install
         run: npm install
 
       - name: "Az CLI login"
-        uses: azure/login@v2
+        uses: azure/login@v3
         with:
           client-id: b5e07540-9063-466a-b209-205566156f3e # DTS Developers GitHub Actions ACR Publisher 1
           tenant-id: 531ff96d-0ae9-462a-8d2d-bec7c0b42082 # HMCTS.NET
