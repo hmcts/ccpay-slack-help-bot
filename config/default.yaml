@@ -21,6 +21,11 @@ app_insights:
   # instrumentation_key: no default
   role_name: ccpay-slack-help-bot
 
+knowledge_sync:
+  jira: true
+  confluence: false
+  github: true
+
 openai:
   endpoint: "https://platops-slack-help-bot-ptl.openai.azure.com/"
   deployment_name: "gpt-4"
