@@ -374,32 +374,32 @@ async function ensureSearchIndex(endpoint, indexName, token) {
   console.log(`Created Azure AI Search index ${indexName}`);
 }
 
-async function loadExistingDocumentIds(endpoint, indexName, token) {
+async function loadExistingDocuments(endpoint, indexName, token) {
   const url = `${endpoint}/indexes/${encodeURIComponent(indexName)}/docs/search?api-version=${SEARCH_API_VERSION}`;
-  const ids = [];
+  const documents = [];
   for (let skip = 0; ; skip += 1000) {
     if (skip > 100_000) {
       throw new Error("Index exceeds the supported stale-document cleanup range");
     }
     const result = await searchRequest(url, token, {
       search: "*",
-      select: "id",
+      select: "id,sourceType",
       top: 1000,
       skip,
     });
     const page = result.value || [];
-    ids.push(...page.map((document) => document.id).filter(Boolean));
-    if (page.length < 1000) return ids;
+    documents.push(...page.filter((document) => document.id));
+    if (page.length < 1000) return documents;
   }
 }
 
-async function uploadDocuments(documents) {
+async function uploadDocuments(documents, enabledSourceTypes) {
   const endpoint = trimTrailingSlash(requiredConfig("search.endpoint"));
   const indexName = requiredConfig("search.knowledge_store_index_name");
   const token = await searchToken();
   const url = `${endpoint}/indexes/${encodeURIComponent(indexName)}/docs/index?api-version=${SEARCH_API_VERSION}`;
   await ensureSearchIndex(endpoint, indexName, token);
-  const existingIds = await loadExistingDocumentIds(endpoint, indexName, token);
+  const existingDocuments = await loadExistingDocuments(endpoint, indexName, token);
   const desiredIds = new Set(documents.map((document) => document.id));
 
   for (let start = 0; start < documents.length; start += UPLOAD_BATCH_SIZE) {
@@ -415,7 +415,9 @@ async function uploadDocuments(documents) {
     console.log(`Indexed ${Math.min(start + batch.length, documents.length)} / ${documents.length} chunks`);
   }
 
-  const staleIds = existingIds.filter((id) => !desiredIds.has(id));
+  const staleIds = existingDocuments
+    .filter((document) => enabledSourceTypes.has(document.sourceType) && !desiredIds.has(document.id))
+    .map((document) => document.id);
   for (let start = 0; start < staleIds.length; start += UPLOAD_BATCH_SIZE) {
     const batch = staleIds.slice(start, start + UPLOAD_BATCH_SIZE).map((id) => ({
       "@search.action": "delete",
@@ -433,28 +435,47 @@ async function uploadDocuments(documents) {
 }
 
 async function main() {
-  const feePayRepos = sources.github.feeAndPaymentsRepositories;
-  const reformRepos = sources.github.hmctsReformRepositories;
-  const repositories = [...new Set([...feePayRepos, ...reformRepos])];
+  const enabledSourceTypes = new Set();
+  const documents = [];
 
-  console.log(`Reading Jira project ${sources.atlassian.jiraProjectKey}`);
-  const jiraDocuments = await loadJiraIssues();
-  console.log(`Prepared ${jiraDocuments.length} Jira chunks`);
+  if (config.get("knowledge_sync.jira") === true) {
+    enabledSourceTypes.add("jira");
+    console.log(`Reading Jira project ${sources.atlassian.jiraProjectKey}`);
+    const jiraDocuments = await loadJiraIssues();
+    console.log(`Prepared ${jiraDocuments.length} Jira chunks`);
+    documents.push(...jiraDocuments);
+  } else {
+    console.log("Skipping Jira sync (disabled in config)");
+  }
 
-  console.log(`Reading Confluence space ${sources.atlassian.confluenceSpaceKey}`);
-  const confluenceDocuments = await loadConfluencePages();
-  console.log(`Prepared ${confluenceDocuments.length} Confluence chunks`);
+  if (config.get("knowledge_sync.confluence") === true) {
+    enabledSourceTypes.add("confluence");
+    console.log(`Reading Confluence space ${sources.atlassian.confluenceSpaceKey}`);
+    const confluenceDocuments = await loadConfluencePages();
+    console.log(`Prepared ${confluenceDocuments.length} Confluence chunks`);
+    documents.push(...confluenceDocuments);
+  } else {
+    console.log("Skipping Confluence sync (disabled in config)");
+  }
 
-  const githubByRepository = await mapWithConcurrency(repositories, 3, async (repository) => {
-    console.log(`Reading GitHub repository ${repository}`);
-    return loadGithubRepository(repository);
-  });
-  const githubDocuments = githubByRepository.flat();
-  console.log(`Prepared ${githubDocuments.length} GitHub chunks`);
+  if (config.get("knowledge_sync.github") === true) {
+    enabledSourceTypes.add("github");
+    const feePayRepos = sources.github.feeAndPaymentsRepositories;
+    const reformRepos = sources.github.hmctsReformRepositories;
+    const repositories = [...new Set([...feePayRepos, ...reformRepos])];
+    const githubByRepository = await mapWithConcurrency(repositories, 3, async (repository) => {
+      console.log(`Reading GitHub repository ${repository}`);
+      return loadGithubRepository(repository);
+    });
+    const githubDocuments = githubByRepository.flat();
+    console.log(`Prepared ${githubDocuments.length} GitHub chunks`);
+    documents.push(...githubDocuments);
+  } else {
+    console.log("Skipping GitHub sync (disabled in config)");
+  }
 
-  const documents = [...jiraDocuments, ...confluenceDocuments, ...githubDocuments];
   if (documents.length === 0) throw new Error("No source documents were found; index upload cancelled");
-  await uploadDocuments(documents);
+  await uploadDocuments(documents, enabledSourceTypes);
   console.log(`Source sync complete: ${documents.length} chunks uploaded to ${config.get("search.knowledge_store_index_name")}`);
 }
 
