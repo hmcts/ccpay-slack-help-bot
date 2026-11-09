@@ -10,7 +10,7 @@
   "author": "Fee & Payments",
   "license": "MIT",
   "dependencies": {
-    "@azure/identity": "^4.13.1",
+    "@azure/identity": "^4.14.1",
     "@hmcts/properties-volume": "^1.4.0",
     "@slack/bolt": "^5.1.0",
     "@types/config": "3.3.5",
