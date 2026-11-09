@@ -13,13 +13,12 @@ const {
     helpRequestDetails,
     helpRequestRaised,
     openHelpRequestBlocks,
-    superBotMessageBlocks,
     unassignedOpenIssue,
     duplicateHelpRequest,
     resolveHelpRequestBlocks,
     helpRequestDocumentation,
 } = require("./src/messages");
-const { App, LogLevel, SocketModeReceiver, WorkflowStep } = require('@slack/bolt');
+const { App, LogLevel, SocketModeReceiver } = require('@slack/bolt');
 const crypto = require('crypto')
 const {
     addCommentToHelpRequestResolve,
@@ -113,179 +112,6 @@ server.listen(port, () => {
     console.log('⚡️ Bolt app started');
 })();
 
-const ws = new WorkflowStep('superbot_help_request', {
-    ////////////////////////////////////
-    ////  New workflow for SuperBot ////
-    ////////////////////////////////////
-    //// This can be added directly ////
-    ////  into the workflow builder ////
-    ////   in Slack, just give the  ////
-    ////  user a form or something  ////
-    ////     to fill out first.     ////
-    ////////////////////////////////////
-
-    edit: async ({ ack, step, configure }) => {
-        // Called when the workflow step is
-        // added/edited in the Slack workflow
-        // builder. This is what generates the
-        // customization form when you click 'edit'
-        await ack();
-        console.log('Slack workflow editor has been opened: ' + JSON.stringify(step))
-
-        const blocks = superBotMessageBlocks(step.inputs);
-        await configure({ blocks });
-    },
-    save: async ({ ack, step, view, update, client }) => {
-        // Called when the workflow step is
-        // saved in the Slack workflow
-        // builder. This is responsible for
-        // updating the inputs in this stage
-        // when 'save' is clicked on the 'edit'
-        // form
-        await ack();
-        const { values } = view.state;
-        
-        console.log('Slack workflow has been changed: ' + JSON.stringify(values));
-
-        // names/paths of these values must match those in the
-        // 'action_id' and 'block_id' parameters in original form.
-        // See src/messages.js:superBotMessageBlocks(inputs)
-        const summary = values.summary_block.summary_input;
-        const env = values.env_block.env_input;
-        const team = values.team_block.team_input;
-        const area = values.area_block.area_input;
-        const build = values.build_block.build_input;
-        const desc = values.desc_block.desc_input;
-        const alsys = values.alsys_block.alsys_input;
-        const team_check = values.team_check_block.team_check_input;
-        const user = values.user_block.user_input;
-
-        // skip_variable_replacement does something,
-        // I honestly can't tell from slack's documentation.
-        const inputs = {
-            summary: {
-                value: summary.value,
-                skip_variable_replacement: false
-            },
-            env: {
-                value: env.value,
-                skip_variable_replacement: false
-            },
-            team: {
-                value: team.value,
-                skip_variable_replacement: false
-            },
-            area: {
-                value: area.value,
-                skip_variable_replacement: false
-            },
-            build: {
-                value: build.value,
-                skip_variable_replacement: false
-            },
-            desc: {
-                value: desc.value,
-                skip_variable_replacement: false
-            },
-            alsys: {
-                value: alsys.value,
-                skip_variable_replacement: false
-            },
-            team_check: {
-                value: team_check.value,
-                skip_variable_replacement: false
-            },
-            user: {
-                value: user.selected_user,
-                skip_variable_replacement: false
-            },
-        };
-
-        const outputs = [ ];
-
-        await update({ inputs, outputs });
-    },
-    execute: async ({ step, complete, fail, client }) => {
-
-        const { inputs } = step;
-        console.log("Slack workflow has been executed: " + JSON.stringify(inputs));
-
-        const user = inputs.user.value;
-
-        const userEmail = (await client.users.profile.get({
-            user
-        })).profile.email
-
-        const helpRequest = {
-            user,
-            summary: inputs.summary.value || "None",
-            environment: inputs.env.value || "None",
-            team: inputs.team.value || "None",
-            description: inputs.desc.value,
-            analysis: inputs.alsys.value,
-            replicateSteps: inputs.replicateSteps.value,
-            testAccount: inputs.testAccount.value,
-            references: inputs.references.value,
-            ccdReferences: inputs.ccdReferences.value,
-            rcReferences: inputs.rcReferences.value,
-        }
-
-        // using JIRA version v8.15.0#815001-sha1:9cd993c:node1,
-        // check if API is up-to-date
-        const jiraId = await createHelpRequest({
-            summary: helpRequest.summary,
-            userEmail,
-            // Jira labels go here, can't contain spaces btw
-            // TODO: Put this in a function?
-            // TODO: Add more labels?
-            labels: [
-                `area-${inputs.area.value.toLowerCase().replace(' ', '-')}`,
-                `team-${inputs.team.value.toLowerCase().replace(' ', '-')}`
-            ]
-        });
-
-        const result = await client.chat.postMessage({
-            channel: reportChannel,
-            text: 'New support request raised',
-            blocks: helpRequestRaised({
-                ...helpRequest,
-                jiraId
-            })
-        });
-      
-        if (!result.ok)
-        {
-            console.log("An error occurred when posting to Slack: " + JSON.stringify(result));
-        }
-
-        const response = await client.chat.postMessage({
-            channel: reportChannel,
-            thread_ts: result.message.ts,
-            text: 'New support request raised',
-            blocks: helpRequestDetails(helpRequest)
-        });
-
-        if (!response.ok)
-        {
-            console.log("An error occurred when posting to Slack: " + JSON.stringify(response))
-            return;
-        }
-
-        const permaLink = (await client.chat.getPermalink({
-            channel: result.channel,
-            'message_ts': result.message.ts
-        })).permalink
-
-        await updateHelpRequestDescription(jiraId, {
-            ...helpRequest,
-            slackLink: permaLink
-        });
-
-        complete();
-    },
-});
-
-app.step(ws);
 
 /////////////////////////////
 //// Setup App Homepage  ////

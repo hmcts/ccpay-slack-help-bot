@@ -1,8 +1,8 @@
 # FeePay help Slack Agent setup
 
 Configure the existing Fee & Payments Slack app so it can also be used as an
-Agent in Slack. Keep its current global help-request shortcut, Workflow Builder
-step, and Jira ticket interactions enabled.
+Agent in Slack. Keep its current global help-request shortcut and Jira ticket
+interactions enabled.
 
 ## Slack app settings
 
