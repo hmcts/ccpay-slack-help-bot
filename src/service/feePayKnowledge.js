@@ -55,7 +55,6 @@ async function searchFeePayKnowledge(question) {
       search: question,
       queryType: "semantic",
       semanticConfiguration,
-      queryLanguage: "en-us",
       captions: "extractive",
       top: MAX_SOURCE_COUNT,
       select: "title,url,content,sourceType,sourceName",
