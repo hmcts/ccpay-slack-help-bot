@@ -5,9 +5,9 @@ const credential = new DefaultAzureCredential();
 const searchScope = "https://search.azure.com/.default";
 const openAiScope = "https://cognitiveservices.azure.com/.default";
 const openAiApiVersion = "2024-04-01-preview";
-const MAX_SOURCE_COUNT = 5;
-const MAX_INVENTORY_SOURCE_COUNT = 50;
-const MAX_SOURCE_CHARS = 5000;
+const MAX_SOURCE_COUNT = 20;
+const MAX_INVENTORY_SOURCE_COUNT = 100;
+const MAX_SOURCE_CHARS = 10000;
 
 function inventoryQueryType(question) {
   const normalized = String(question || "").toLowerCase();
