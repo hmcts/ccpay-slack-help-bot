@@ -10,6 +10,11 @@ const path = require("path");
 const { execFileSync } = require("child_process");
 const JiraApi = require("jira-client");
 const sources = require("../config/knowledge-sources.json");
+const {
+  buildRepositoryInventory,
+  collectDirectDependencies,
+  isRepositoryMetadataPath,
+} = require("./repositoryInventory");
 
 const SEARCH_API_VERSION = "2024-07-01";
 const SEARCH_SCOPE = "https://search.azure.com/.default";
@@ -217,6 +222,7 @@ function isRelevantGithubPath(path) {
   ) {
     return false;
   }
+  if (isRepositoryMetadataPath(path)) return true;
   return /\.(md|mdx|java|js|jsx|ts|tsx|py|tf|yml|yaml|json|xml|sql|properties|sh|gradle|groovy|kt)$/.test(normalized);
 }
 
@@ -281,9 +287,12 @@ async function loadGithubRepository(repository) {
     }
     walk(repositoryDirectory);
 
-    return files.flatMap(({ absolutePath, relativePath }) => {
+    const repositoryFiles = files.flatMap(({ absolutePath, relativePath }) => {
       const content = fs.readFileSync(absolutePath, "utf8");
       if (content.includes("\u0000")) return [];
+      return [{ relativePath, content }];
+    });
+    const githubDocuments = repositoryFiles.flatMap(({ relativePath, content }) => {
       const encodedBranch = branch.split("/").map(encodeURIComponent).join("/");
       const url = `https://github.com/${repository}/blob/${encodedBranch}/${relativePath.split("/").map(encodeURIComponent).join("/")}`;
       return toSearchDocuments({
@@ -294,6 +303,11 @@ async function loadGithubRepository(repository) {
         sourceName: repository,
       });
     });
+    const inventory = buildRepositoryInventory(repository, branch, repositoryFiles);
+    const inventoryDocuments = toSearchDocuments(inventory);
+    const dependencyDocuments = collectDirectDependencies(repository, branch, repositoryFiles)
+      .flatMap((document) => toSearchDocuments(document));
+    return [...githubDocuments, ...inventoryDocuments, ...dependencyDocuments];
   } finally {
     fs.rmSync(temporaryDirectory, { recursive: true, force: true });
   }
@@ -460,6 +474,8 @@ async function main() {
 
   if (config.get("knowledge_sync.github") === true) {
     enabledSourceTypes.add("github");
+    enabledSourceTypes.add("repository_inventory");
+    enabledSourceTypes.add("dependency_inventory");
     const feePayRepos = sources.github.feeAndPaymentsRepositories;
     const reformRepos = sources.github.hmctsReformRepositories;
     const repositories = [...new Set([...feePayRepos, ...reformRepos])];
@@ -468,7 +484,9 @@ async function main() {
       return loadGithubRepository(repository);
     });
     const githubDocuments = githubByRepository.flat();
-    console.log(`Prepared ${githubDocuments.length} GitHub chunks`);
+    const inventoryCount = githubDocuments.filter((document) => document.sourceType === "repository_inventory").length;
+    const dependencyCount = githubDocuments.filter((document) => document.sourceType === "dependency_inventory").length;
+    console.log(`Prepared ${githubDocuments.length} GitHub and inventory chunks (${inventoryCount} repository, ${dependencyCount} dependency)`);
     documents.push(...githubDocuments);
   } else {
     console.log("Skipping GitHub sync (disabled in config)");

@@ -1,0 +1,85 @@
+{
+  "repositories": {
+    "hmcts/ccpay-bubble": {
+      "category": "NodeJS",
+      "type": "Application",
+      "purpose": "Paybubble standalone payment management app"
+    },
+    "hmcts/ccfr-fees-register-admin-web": {
+      "category": "NodeJS",
+      "type": "Application",
+      "purpose": "Fees register app"
+    },
+    "hmcts/ccpay-web-component": {
+      "category": "NodeJS",
+      "type": "Library",
+      "purpose": "Payment component used in XUI and PayBubble"
+    },
+    "hmcts/ccpay-paymentoutcome-web": {
+      "category": "NodeJS",
+      "type": "Application",
+      "purpose": "Payment outcomes returned to service"
+    },
+    "hmcts/ccpay-functions-node": {
+      "category": "NodeJS",
+      "type": "Azure Function",
+      "purpose": "Receives a service bus message and sends an HTTP PATCH to a callback endpoint"
+    },
+    "hmcts/ccpay-payment-app": {
+      "category": "Java Backend",
+      "type": "Java API",
+      "purpose": "Payments API"
+    },
+    "hmcts/ccpay-refunds-app": {
+      "category": "Java Backend",
+      "type": "Java API",
+      "purpose": "Refunds API"
+    },
+    "hmcts/ccpay-bulkscanning-app": {
+      "category": "Java Backend",
+      "type": "Java API",
+      "purpose": "Bulkscanning API"
+    },
+    "hmcts/cpo-case-payment-orders-api": {
+      "category": "Java Backend",
+      "type": "Java API",
+      "purpose": "API to manage case payment orders",
+      "trackerStatus": "Review; the supplied tracker marks this row as struck through"
+    },
+    "hmcts/ccfr-fees-register-app": {
+      "category": "Java Backend",
+      "type": "Java API",
+      "purpose": "Fee Register API"
+    },
+    "hmcts/ccpay-notifications-service": {
+      "category": "Java Backend",
+      "type": "Java API",
+      "purpose": "Email payment notifications"
+    },
+    "hmcts/ccpay-service-request-cpo-update-service": {
+      "category": "Java Backend",
+      "type": "Java API",
+      "purpose": "Updates service request data to Case Payment Orders"
+    },
+    "hmcts/ccpay-scheduled-jobs": {
+      "category": "Java Backend",
+      "type": "Scheduled Job",
+      "purpose": "Triggers web jobs for reporting, notifications, and status updates"
+    },
+    "hmcts/payments-java-client": {
+      "category": "Java Backend",
+      "type": "Java Client",
+      "purpose": "Payment client"
+    },
+    "hmcts/ccpayfr-shared-infrastructure": {
+      "category": "Infrastructure",
+      "type": "Terraform",
+      "purpose": "Shared infrastructure"
+    },
+    "hmcts/ccpay-payment-api-gateway": {
+      "category": "Infrastructure",
+      "type": "Terraform",
+      "purpose": "Infrastructure for the payment gateway"
+    }
+  }
+}

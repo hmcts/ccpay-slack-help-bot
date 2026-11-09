@@ -58,6 +58,27 @@ in the knowledge sync. Apply the label only to content approved for the Agent's
 audience, then run the **Sync FeePay knowledge** workflow in GitHub Actions to
 refresh the index.
 
+### Repository inventory
+
+The sync also builds a repository inventory from the curated GitHub repository
+list. [`config/repository-catalog.json`](config/repository-catalog.json) records
+each repository's category, type, and purpose based on the supplied tracker;
+[`config/repository-inventory-rules.json`](config/repository-inventory-rules.json)
+defines which technology fields are scanned for each category. Version and
+dependency values are read from the current repository files during each sync,
+not copied from the tracker. Inventory entries link to the file and line that
+provided the evidence. If no declaration is found, the inventory reports that
+as unknown rather than proof that the technology is absent.
+
+Questions asking which repositories match a technology or version use the full
+repository inventory, separately from the chatbot's normal five-source answer
+search. Dependency questions use indexed declarations from `package.json`,
+Maven `pom.xml`, and literal Gradle dependency declarations. To refresh this
+information after repository changes, run **Sync FeePay knowledge**. Security
+configuration checks such as detecting missing Helmet or Spring Security setup
+need dedicated rules; a missing search result is not treated as proof that a
+configuration is absent.
+
 ## Getting Started with the Bot
 
 ### Prerequisites

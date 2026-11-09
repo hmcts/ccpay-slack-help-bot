@@ -1,0 +1,18 @@
+{
+  "categories": {
+    "NodeJS": {
+      "fields": ["Node.js", "Yarn", "Terraform"]
+    },
+    "Java Backend": {
+      "fields": ["Java", "Gradle", "Spring Boot", "Terraform"]
+    },
+    "Infrastructure": {
+      "fields": ["Terraform", "AzureRM"]
+    }
+  },
+  "evidencePolicy": {
+    "currentValuesMustComeFromRepositoryFiles": true,
+    "trackerValuesAreNeverVersionEvidence": true,
+    "missingEvidenceLabel": "No declaration detected in scanned files (unknown; not proof of absence)"
+  }
+}
