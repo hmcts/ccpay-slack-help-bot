@@ -110,6 +110,26 @@ function sourceContext(sources) {
     .join("\n\n");
 }
 
+function markdownToSlackMrkdwn(markdown) {
+  const protectedParts = [];
+  const protect = (part) => {
+    const token = `\u0000SLACK_PART_${protectedParts.length}\u0000`;
+    protectedParts.push(part);
+    return token;
+  };
+  let text = String(markdown || "").replace(/```[\s\S]*?```|`[^`\n]+`/g, protect);
+
+  text = text
+    .replace(/!?\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, (_, label, url) => protect(`<${url}|${label}>`))
+    .replace(/(?<!\*)\*([^*\n]+)\*(?!\*)/g, "_$1_")
+    .replace(/\*\*([^*\n]+)\*\*/g, "*$1*")
+    .replace(/__([^_\n]+)__/g, "*$1*")
+    .replace(/^\s{0,3}#{1,6}\s+(.+?)\s*#*\s*$/gm, "*$1*")
+    .replace(/^\s*[-*_]{3,}\s*$/gm, "");
+
+  return text.replace(/\u0000SLACK_PART_(\d+)\u0000/g, (_, index) => protectedParts[Number(index)]);
+}
+
 async function generateGroundedAnswer(question, sources, conversation) {
   const endpoint = trimTrailingSlash(requiredConfig("openai.endpoint"));
   const deployment = requiredConfig("openai.deployment_name");
@@ -132,7 +152,10 @@ async function generateGroundedAnswer(question, sources, conversation) {
         "support the answer, say so and suggest raising a Fee and Payments help " +
         "request. Cite claims with " +
         "the supplied numbered references, for example [1]. Be concise and " +
-        "practical. Do not create or change Jira issues.",
+        "practical. Format the answer for Slack mrkdwn: use *single asterisks " +
+        "for bold*, <URL|link text> for links, and simple hyphenated lines for " +
+        "lists. Do not use Markdown double-asterisk bold or [text](URL) links. " +
+        "Do not create or change Jira issues.",
     },
     ...conversation.slice(-8),
     {
@@ -155,7 +178,7 @@ async function generateGroundedAnswer(question, sources, conversation) {
   const references = sources
     .map((source, index) => `${index + 1}. <${source.url}|${source.title}>`)
     .join("\n");
-  return `${answer}\n\n*Sources*\n${references}`;
+  return `${markdownToSlackMrkdwn(answer)}\n\n*Sources*\n${references}`;
 }
 
 async function answerFeePayQuestion({ question, conversation = [] }) {
@@ -167,4 +190,4 @@ async function answerFeePayQuestion({ question, conversation = [] }) {
   return generateGroundedAnswer(question, sources, conversation);
 }
 
-module.exports = { answerFeePayQuestion };
+module.exports = { answerFeePayQuestion, markdownToSlackMrkdwn };
