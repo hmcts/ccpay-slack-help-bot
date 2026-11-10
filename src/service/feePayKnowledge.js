@@ -1,5 +1,10 @@
 const config = require("config");
 const { DefaultAzureCredential } = require("@azure/identity");
+const {
+  shouldExploreRepository,
+  resolveRepository,
+  runRepositoryExplorer,
+} = require("./repositoryExplorer");
 
 const credential = new DefaultAzureCredential();
 const searchScope = "https://search.azure.com/.default";
@@ -58,7 +63,31 @@ async function postJson(url, token, body) {
   return response.json();
 }
 
-async function searchFeePayKnowledge(question) {
+function deduplicateSources(items) {
+  const sources = new Map();
+  for (const item of items) {
+    if (!item.title || !item.url || !item.content) continue;
+    const current = sources.get(item.url) || {
+      title: item.title,
+      url: item.url,
+      sourceType: item.sourceType || "HMCTS source",
+      sourceName: item.sourceName || "",
+      contentParts: [],
+    };
+    const content = String(item.content).slice(0, MAX_SOURCE_CHARS);
+    if (content && !current.contentParts.includes(content)) current.contentParts.push(content);
+    sources.set(item.url, current);
+  }
+  return [...sources.values()].map((source) => ({
+    title: source.title,
+    url: source.url,
+    sourceType: source.sourceType,
+    sourceName: source.sourceName,
+    content: source.contentParts.join("\n\n").slice(0, MAX_SOURCE_CHARS),
+  }));
+}
+
+async function searchFeePayKnowledge(question, { repository } = {}) {
   const endpoint = trimTrailingSlash(requiredConfig("search.endpoint"));
   const indexName = requiredConfig("search.knowledge_store_index_name");
   const semanticConfiguration = requiredConfig(
@@ -71,7 +100,10 @@ async function searchFeePayKnowledge(question) {
 
   const inventoryType = inventoryQueryType(question);
   const inventorySearch = Boolean(inventoryType);
-  const filter = inventoryType ? `sourceType eq '${inventoryType}'` : undefined;
+  const filters = [];
+  if (inventoryType) filters.push(`sourceType eq '${inventoryType}'`);
+  if (repository) filters.push(`sourceName eq '${repository.replace(/'/g, "''")}'`);
+  const filter = filters.length ? filters.join(" and ") : undefined;
 
   const result = await postJson(
     `${endpoint}/indexes/${encodeURIComponent(indexName)}/docs/search?api-version=2024-07-01`,
@@ -87,15 +119,10 @@ async function searchFeePayKnowledge(question) {
     },
   );
 
-  return (result.value || [])
-    .filter((item) => item.title && item.url && item.content)
-    .map((item) => ({
-      title: item.title,
-      url: item.url,
-      sourceType: item.sourceType || "HMCTS source",
-      sourceName: item.sourceName || "",
-      content: String(item.content).slice(0, inventorySearch ? 2500 : MAX_SOURCE_CHARS),
-    }));
+  return deduplicateSources((result.value || []).map((item) => ({
+    ...item,
+    content: String(item.content || "").slice(0, inventorySearch ? 2500 : MAX_SOURCE_CHARS),
+  })));
 }
 
 function sourceContext(sources) {
@@ -182,6 +209,29 @@ async function generateGroundedAnswer(question, sources, conversation) {
 }
 
 async function answerFeePayQuestion({ question, conversation = [] }) {
+  if (shouldExploreRepository(question, conversation)) {
+    const repository = resolveRepository(question, conversation);
+    const endpoint = trimTrailingSlash(requiredConfig("openai.endpoint"));
+    const deployment = requiredConfig("openai.deployment_name");
+    const token = await credential.getToken(openAiScope);
+    if (!token?.token) throw new Error("Could not obtain an Azure OpenAI access token");
+    try {
+      return await runRepositoryExplorer({
+        repository,
+        question,
+        conversation,
+        endpoint,
+        deployment,
+        apiVersion: openAiApiVersion,
+        token: token.token,
+        formatAnswer: markdownToSlackMrkdwn,
+      });
+    } catch (error) {
+      console.error(`Could not inspect ${repository} directly`, error);
+      return `I couldn't inspect the current source for ${repository}, so I can't reliably provide a complete code-level answer right now. Please try again later or raise a Fee and Payments help request.`;
+    }
+  }
+
   const sources = await searchFeePayKnowledge(question);
   if (sources.length === 0) {
     return "I couldn't find a relevant answer in the Fee and Payments sources. " +

@@ -71,13 +71,22 @@ provided the evidence. If no declaration is found, the inventory reports that
 as unknown rather than proof that the technology is absent.
 
 Questions asking which repositories match a technology or version use the full
-repository inventory, separately from the chatbot's normal five-source answer
-search. Dependency questions use indexed declarations from `package.json`,
-Maven `pom.xml`, and literal Gradle dependency declarations. To refresh this
-information after repository changes, run **Sync FeePay knowledge**. Security
-configuration checks such as detecting missing Helmet or Spring Security setup
-need dedicated rules; a missing search result is not treated as proof that a
-configuration is absent.
+repository inventory, separately from the chatbot's ordinary knowledge search.
+Cross-repository dependency questions can use indexed declarations from
+`package.json`, Maven `pom.xml`, and literal Gradle dependency declarations. To
+refresh this inventory after repository changes, run **Sync FeePay knowledge**.
+
+For questions that name a curated repository and ask about its source code, the
+Agent inspects a shallow clone of the repository's current default branch at
+runtime. It can list files, search text across files, and read exact line ranges.
+Repository citations link to the inspected commit and are deduplicated by file.
+The live source path is used for repository-specific code and dependency
+questions, including configuration checks; it reports when relevant files could
+not be inspected.
+The runtime container therefore needs Git installed and outbound access to
+GitHub. Jira and Confluence questions continue to use the Azure AI Search
+knowledge index, so adding labeled Confluence pages to the sync remains
+supported.
 
 ## Getting Started with the Bot
 
