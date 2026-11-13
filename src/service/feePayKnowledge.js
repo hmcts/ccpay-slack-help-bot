@@ -147,11 +147,16 @@ function markdownToSlackMrkdwn(markdown) {
   let text = String(markdown || "").replace(/```[\s\S]*?```|`[^`\n]+`/g, protect);
 
   text = text
+    .replace(/\\([*_])/g, "$1")
+    .replace(/\\([\[\]()])/g, "$1")
     .replace(/!?\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, (_, label, url) => protect(`<${url}|${label}>`))
-    .replace(/(?<!\*)\*([^*\n]+)\*(?!\*)/g, "_$1_")
     .replace(/\*\*([^*\n]+)\*\*/g, "*$1*")
     .replace(/__([^_\n]+)__/g, "*$1*")
     .replace(/^\s{0,3}#{1,6}\s+(.+?)\s*#*\s*$/gm, "*$1*")
+    .replace(/([.:!?])\s*(?=\*[^*\n]+\*(?:\s*-|\s*\d+[.)]))/g, "$1\n\n")
+    .replace(/(\*[^*\n]+\*)\s*-(?=\s)/g, "$1\n-")
+    .replace(/(\*[^*\n]+\*)\s*(?=\d+[.)]\s)/g, "$1\n")
+    .replace(/([.!?])\s*-(?=\s)/g, "$1\n-")
     .replace(/^\s*[-*_]{3,}\s*$/gm, "");
 
   return text.replace(/\u0000SLACK_PART_(\d+)\u0000/g, (_, index) => protectedParts[Number(index)]);
@@ -181,7 +186,8 @@ async function generateGroundedAnswer(question, sources, conversation) {
         "the supplied numbered references, for example [1]. Be concise and " +
         "practical. Format the answer for Slack mrkdwn: use *single asterisks " +
         "for bold*, <URL|link text> for links, and simple hyphenated lines for " +
-        "lists. Do not use Markdown double-asterisk bold or [text](URL) links. " +
+        "lists. Put headings and each list item on separate lines. Do not escape " +
+        "formatting punctuation with backslashes or use [text](URL) links. " +
         "Do not create or change Jira issues.",
     },
     ...conversation.slice(-8),

@@ -49,7 +49,7 @@ stages:
               overrideAction: ${{ parameters.action }}
               keyvaultName: "infra-vault-nonprod"
               keyvaultSecret: "azure-devops-sp-token"
-              serviceConnection: "DCD-CFT-Sandbox"
+              serviceConnection: "DCD-CFT-Sandbox-WIF"
 
   - ${{ each parameter in parameters.environments }}:
       - stage: ${{ parameter.environment }}
@@ -64,7 +64,7 @@ stages:
                   overrideAction: ${{ parameters.action }}
                   environment: "ptl"
                   component: infrastructure
-                  serviceConnection: "DTS-${{ upper(parameter.environment) }}-INTSVC"
+                  serviceConnection: "DTS-${{ upper(parameter.environment) }}-INTSVC-WIF"
                   terraformInitSubscription: 04d27a32-7a07-48b3-95b8-3c8691e1a263
                   tfVarsFile: NULL
                   product: ${{ variables.product }}
